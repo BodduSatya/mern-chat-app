@@ -4,6 +4,8 @@ const otpGenerator = require('otp-generator');
 // Model
 const User = require("../models/user");
 
+const mailService = require("../services/mailer");
+
 // this function will return you jwt token
 const signToken = (userId) => jwt.sign({ userId }, process.env.JWT_SECRET);
 
@@ -69,17 +71,33 @@ exports.sendOTP = async (req, res, next) => {
 
   const otp_expirty_time = Date.now() + 10 * 60 * 1000; // 10min after otp is sent
 
-  await User.findByIdAndUpdate(userId,{
+  await User.findByIdAndUpdate(userId, {
     otp: new_otp,
     otp_expirty_time
   });
 
   // TODO Send mail
 
-  res.status(200).json({
-    status: "success",
-    message: "OTP sent successfully"
-  })
+  mailService.sendEmail({
+    from: process.env.FROM_EMAIL_ID,
+    to: req.body.email,
+    subject: "OTP for tawk",
+    text: `Your OTP is ${new_otp} , This is valid for 10 Mintus`
+  }).then((e) => {
+    console.log("mail send status :: ", e);
+    res.status(200).json({
+      status: "success",
+      message: "OTP sent successfully"
+    });
+  }).catch((e) => {
+    console.log('Mail sending failed! cause :: ', e);
+    res.status(500).json({
+      status: "fail",
+      message: "OTP send failed!"
+    });
+  });
+
+
 };
 
 exports.verifyOTP = async (req, res, next) => {
@@ -155,16 +173,16 @@ exports.login = async (req, res, next) => {
   });
 };
 
+// type of routes => protected ( only logged in users can access token) & unprotected
+
 // Protect
 exports.protect = async (req, res, next) => {
   // 1) Getting token and check if it's there
   let token;
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith("Bearer")
-  ) {
+  if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
     token = req.headers.authorization.split(" ")[1];
-  } else if (req.cookies.jwt) {
+  }
+  else if (req.cookies.jwt) {
     token = req.cookies.jwt;
   }
 
@@ -177,7 +195,6 @@ exports.protect = async (req, res, next) => {
   const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
 
   // 3) Check if user still exists
-
   const this_user = await User.findById(decoded.id);
   if (!this_user) {
     return next(
@@ -213,7 +230,7 @@ exports.forgotPassword = async (req, res, next) => {
 
   // 3) Send it to user's email
   try {
-    const resetURL = `https://tawk.com/auth/reset-password/${resetToken}`;
+    const resetURL = process.env.HOST_SERVER_DOMAIN + `/auth/reset-password/?code=${resetToken}`;
     // TODO => Send Email with this Reset URL to user's email address
 
     res.status(200).json({
