@@ -3,6 +3,7 @@ const dotenv = require('dotenv');
 dotenv.config({ path: "./config.env" });
 process.on("uncaughtException", (err) => {
     console.log(err);
+    console.log("UNCAUGHT Exception! Shutting down ...");
     process.exit(1); // Exit Code 1 indicates that a container shut down, either because of an application failure.
 });
 

@@ -1,133 +1,139 @@
 const jwt = require("jsonwebtoken");
-const otpGenerator = require('otp-generator');
+const otpGenerator = require("otp-generator");
+const mailService = require("../services/mailer");
+const crypto = require("crypto");
+
+const filterObj = require("../utils/filterObj");
 
 // Model
 const User = require("../models/user");
-
-const mailService = require("../services/mailer");
+const otp = require("../Templates/Mail/otp");
 
 // this function will return you jwt token
 const signToken = (userId) => jwt.sign({ userId }, process.env.JWT_SECRET);
 
-
-const catchAsync = (fn) => (req, res, next) => {
-  Promise
-    .resolve(fn(req, res, next))
-    .then(() => {
-      console.log('promis resolved')
-    })
-    .catch((err) => errorHandler(err));
-};
-
 // Register New User
+
 exports.register = async (req, res, next) => {
+  const { firstName, lastName, email, password } = req.body;
+
+  const filteredBody = filterObj(
+    req.body,
+    "firstName",
+    "lastName",
+    "email",
+    "password"
+  );
+
   // check if a verified user with given email exists
-  // if not verified than update prev one
-  // if user is not created before than create a new one
-  // generate an otp and send to email
-  const { firstName, lastName, email, password, verified } = req.body;
 
-  const filteredBody = filterobj(req.body, "firstName", "lastName", "email", "password");
-
-  // check if a verifed user with given email exists
   const existing_user = await User.findOne({ email: email });
 
   if (existing_user && existing_user.verified) {
     // user with this email already exists, Please login
-    res.status(400).json({
+    return res.status(400).json({
       status: "error",
-      message: "Email already in use, Please login."
-    })
-  }
-  else if (existing_user) {
+      message: "Email already in use, Please login.",
+    });
+  } else if (existing_user) {
     // if not verified than update prev one
+
     await User.findOneAndUpdate({ email: email }, filteredBody, {
       new: true,
-      validateModifiedOnly: true
+      validateModifiedOnly: true,
     });
 
-    // generate OTP and send email to user
+    // generate an otp and send to email
     req.userId = existing_user._id;
     next();
-  }
-  else {
-    // if user record is not available in DB
+  } else {
+    // if user is not created before than create a new one
     const new_user = await User.create(filteredBody);
 
-    // generate OTP and send email to user
+    // generate an otp and send to email
     req.userId = new_user._id;
     next();
-
   }
 };
 
 exports.sendOTP = async (req, res, next) => {
   const { userId } = req;
   const new_otp = otpGenerator.generate(6, {
-    lowerCaseAlphabets: false,
     upperCaseAlphabets: false,
-    specialChars: false
+    specialChars: false,
+    lowerCaseAlphabets: false,
   });
 
-  const otp_expirty_time = Date.now() + 10 * 60 * 1000; // 10min after otp is sent
+  const otp_expiry_time = Date.now() + 10 * 60 * 1000; // 10 Mins after otp is sent
 
-  await User.findByIdAndUpdate(userId, {
-    otp: new_otp,
-    otp_expirty_time
+  const user = await User.findByIdAndUpdate(userId, {
+    otp_expiry_time: otp_expiry_time,
   });
 
-  // TODO Send mail
+  user.otp = new_otp.toString();
 
+  await user.save({ new: true, validateModifiedOnly: true });
+
+  console.log(new_otp);
+
+  // TODO send mail
   mailService.sendEmail({
-    from: process.env.FROM_EMAIL_ID,
-    to: req.body.email,
-    subject: "OTP for tawk",
-    text: `Your OTP is ${new_otp} , This is valid for 10 Mintus`
-  }).then((e) => {
-    console.log("mail send status :: ", e);
-    res.status(200).json({
-      status: "success",
-      message: "OTP sent successfully"
-    });
-  }).catch((e) => {
-    console.log('Mail sending failed! cause :: ', e);
-    res.status(500).json({
-      status: "fail",
-      message: "OTP send failed!"
-    });
+    to: user.email,
+    subject: "Verification OTP",
+    html: otp(user.firstName, new_otp),
+    attachments: [],
   });
 
-
+  res.status(200).json({
+    status: "success",
+    message: "OTP Sent Successfully!",
+  });
 };
 
 exports.verifyOTP = async (req, res, next) => {
   // verify otp and update user accordingly
   const { email, otp } = req.body;
-  const user = await User.findOne({ email, otp_expirty_time: { $gt: Date.now() } });
+  const user = await User.findOne({
+    email,
+    otp_expiry_time: { $gt: Date.now() },
+  });
 
   if (!user) {
-    res.status(400).json({ message: "Email is invalid or OTP expired.", status: "error" })
+    return res.status(400).json({
+      status: "error",
+      message: "Email is invalid or OTP expired",
+    });
   }
 
-  if (!await user.correctOTP(otp, user.otp)) {
-    res.status(400).json({ message: "OTP is incorrect", status: "error" })
+  if (user.verified) {
+    return res.status(400).json({
+      status: "error",
+      message: "Email is already verified",
+    });
+  }
+
+  if (!(await user.correctOTP(otp, user.otp))) {
+    res.status(400).json({
+      status: "error",
+      message: "OTP is incorrect",
+    });
+
     return;
   }
 
-  //OTP is correct
+  // OTP is correct
+
   user.verified = true;
   user.otp = undefined;
-
   await user.save({ new: true, validateModifiedOnly: true });
 
   const token = signToken(user._id);
 
   res.status(200).json({
     status: "success",
-    message: "OTP verified successfully!",
+    message: "OTP verified Successfully!",
     token,
   });
-
 };
 
 // User Login
@@ -173,16 +179,16 @@ exports.login = async (req, res, next) => {
   });
 };
 
-// type of routes => protected ( only logged in users can access token) & unprotected
-
 // Protect
 exports.protect = async (req, res, next) => {
   // 1) Getting token and check if it's there
   let token;
-  if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
     token = req.headers.authorization.split(" ")[1];
-  }
-  else if (req.cookies.jwt) {
+  } else if (req.cookies.jwt) {
     token = req.cookies.jwt;
   }
 
@@ -195,6 +201,7 @@ exports.protect = async (req, res, next) => {
   const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
 
   // 3) Check if user still exists
+
   const this_user = await User.findById(decoded.id);
   if (!this_user) {
     return next(
@@ -216,12 +223,14 @@ exports.protect = async (req, res, next) => {
   next();
 };
 
-
 exports.forgotPassword = async (req, res, next) => {
   // 1) Get user based on POSTed email
   const user = await User.findOne({ email: req.body.email });
   if (!user) {
-    return next(new AppError("There is no user with email address.", 404));
+    return res.status(404).json({
+      status: "error",
+      message: "There is no user with email address.",
+    });
   }
 
   // 2) Generate the random reset token
@@ -230,8 +239,10 @@ exports.forgotPassword = async (req, res, next) => {
 
   // 3) Send it to user's email
   try {
-    const resetURL = process.env.HOST_SERVER_DOMAIN + `/auth/reset-password/?code=${resetToken}`;
+    const resetURL = `${HOST_SERVER_DOMAIN}/auth/reset-password/${resetToken}`;
     // TODO => Send Email with this Reset URL to user's email address
+
+    console.log(resetToken);
 
     res.status(200).json({
       status: "success",
@@ -253,7 +264,7 @@ exports.resetPassword = async (req, res, next) => {
   // 1) Get user based on the token
   const hashedToken = crypto
     .createHash("sha256")
-    .update(req.params.token)
+    .update(req.body.token)
     .digest("hex");
 
   const user = await User.findOne({
@@ -263,7 +274,9 @@ exports.resetPassword = async (req, res, next) => {
 
   // 2) If token has not expired, and there is user, set the new password
   if (!user) {
-    return next(new AppError("Token is invalid or has expired", 400));
+    return res.status(400).json({
+      status: "error",
+    });
   }
   user.password = req.body.password;
   user.passwordConfirm = req.body.passwordConfirm;
@@ -273,5 +286,7 @@ exports.resetPassword = async (req, res, next) => {
 
   // 3) Update changedPasswordAt property for the user
   // 4) Log the user in, send JWT
-  createSendToken(user, 200, req, res);
+  res.status(200).json({
+    status: "success",
+  });
 };
