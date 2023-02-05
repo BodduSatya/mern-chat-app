@@ -4,19 +4,24 @@ import * as Yup from 'yup';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 // @mui
-import { Stack, IconButton, InputAdornment, Button } from '@mui/material';
+import { Stack, IconButton, InputAdornment, Button, Alert } from '@mui/material';
 // components
 import FormProvider, { RHFTextField } from '../../components/hook-form';
 import { Eye, EyeSlash } from 'phosphor-react';
-
+import { useSearchParams } from 'react-router-dom';
+import { useDispatch, useSelector } from "react-redux";
+import { NewPassword } from '../../redux/slices/auth';
+import { LoadingButton } from "@mui/lab";
 // ----------------------------------------------------------------------
 
 export default function NewPasswordForm() {
- 
+  const dispatch = useDispatch();
+  const { isLoading } = useSelector((state) => state.auth);
+  const [queryParameters] = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
 
-  const VerifyCodeSchema = Yup.object().shape({
-    
+  const NewPasswordSchema = Yup.object().shape({
+
     password: Yup.string()
       .min(6, 'Password must be at least 6 characters')
       .required('Password is required'),
@@ -31,44 +36,54 @@ export default function NewPasswordForm() {
   };
 
   const methods = useForm({
-    mode: 'onChange',
-    resolver: yupResolver(VerifyCodeSchema),
+    resolver: yupResolver(NewPasswordSchema),
     defaultValues,
   });
 
   const {
+    reset,
+    setError,
     handleSubmit,
-    formState: { isSubmitting, errors },
+    formState: { errors, isSubmitting, isSubmitSuccessful }
   } = methods;
 
   const onSubmit = async (data) => {
     try {
-    //   Send API Request
+      //   Send API Request
+      console.log('*1');
+      dispatch(NewPassword({ ...data, token: queryParameters.get('token') }));
+      console.log('*2');
     } catch (error) {
       console.error(error);
+      reset();
+      setError("afterSubmit", {
+        ...error,
+        message: error.message
+      });
     }
   };
 
   return (
     <FormProvider methods={methods} onSubmit={handleSubmit(onSubmit)}>
       <Stack spacing={3}>
-        
-
+        {!!errors.afterSubmit && (
+          <Alert severity="error">{errors.afterSubmit.message}</Alert>
+        )}
         <RHFTextField
           name="password"
           label="Password"
           type={showPassword ? 'text' : 'password'}
           InputProps={{
             endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton
-                    onClick={() => setShowPassword(!showPassword)}
-                    edge="end"
-                  >
-                    {showPassword ? <Eye /> : <EyeSlash />}
-                  </IconButton>
-                </InputAdornment>
-              ),
+              <InputAdornment position="end">
+                <IconButton
+                  onClick={() => setShowPassword(!showPassword)}
+                  edge="end"
+                >
+                  {showPassword ? <Eye /> : <EyeSlash />}
+                </IconButton>
+              </InputAdornment>
+            ),
           }}
         />
 
@@ -78,24 +93,24 @@ export default function NewPasswordForm() {
           type={showPassword ? 'text' : 'password'}
           InputProps={{
             endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton
-                    onClick={() => setShowPassword(!showPassword)}
-                    edge="end"
-                  >
-                    {showPassword ? <Eye /> : <EyeSlash />}
-                  </IconButton>
-                </InputAdornment>
-              ),
+              <InputAdornment position="end">
+                <IconButton
+                  onClick={() => setShowPassword(!showPassword)}
+                  edge="end"
+                >
+                  {showPassword ? <Eye /> : <EyeSlash />}
+                </IconButton>
+              </InputAdornment>
+            ),
           }}
         />
 
-        <Button
+        <LoadingButton
+          loading={isLoading}
           fullWidth
           size="large"
           type="submit"
           variant="contained"
-          
           sx={{
             mt: 3,
             bgcolor: "text.primary",
@@ -109,7 +124,7 @@ export default function NewPasswordForm() {
           }}
         >
           Update Password
-        </Button>
+        </LoadingButton>
       </Stack>
     </FormProvider>
   );

@@ -17,8 +17,6 @@ const NewPassword = () => {
         </Typography>
       </Stack>
 
-      {/* NewPasswordForm */}
-
       <NewPasswordForm />
 
       <Link

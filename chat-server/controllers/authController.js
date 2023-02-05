@@ -4,10 +4,11 @@ const mailService = require("../services/mailer");
 const crypto = require("crypto");
 
 const filterObj = require("../utils/filterObj");
-
+const AppError = require("../utils/AppError");
 // Model
 const User = require("../models/user");
 const otp = require("../Templates/Mail/otp");
+const resetPassword = require("../Templates/Mail/resetPassword");
 
 // this function will return you jwt token
 const signToken = (userId) => jwt.sign({ userId }, process.env.JWT_SECRET);
@@ -155,7 +156,7 @@ exports.login = async (req, res, next) => {
   if (!user || !user.password) {
     res.status(400).json({
       status: "error",
-      message: "Incorrect password",
+      message: "Email or password is incorrect",
     });
 
     return;
@@ -224,8 +225,10 @@ exports.protect = async (req, res, next) => {
 };
 
 exports.forgotPassword = async (req, res, next) => {
+
   // 1) Get user based on POSTed email
   const user = await User.findOne({ email: req.body.email });
+
   if (!user) {
     return res.status(404).json({
       status: "error",
@@ -236,17 +239,22 @@ exports.forgotPassword = async (req, res, next) => {
   // 2) Generate the random reset token
   const resetToken = user.createPasswordResetToken();
   await user.save({ validateBeforeSave: false });
-
   // 3) Send it to user's email
   try {
-    const resetURL = `${HOST_SERVER_DOMAIN}/auth/reset-password/${resetToken}`;
-    // TODO => Send Email with this Reset URL to user's email address
-
+    // const resetURL = `${process.env.BASE_URL}/auth/reset-password/${resetToken}`;
+    const resetURL = `${process.env.UI_BASE_URL}/auth/new-password?token=${resetToken}`;
+    console.log('resetURL=', resetURL);
+    mailService.sendEmail({
+      to: user.email,
+      subject: "Reset Password",
+      html: resetPassword(user.firstName, resetURL),
+      attachments: [],
+    });
     console.log(resetToken);
 
     res.status(200).json({
       status: "success",
-      message: "Token sent to email!",
+      message: "Reset Password link sent to your registered email!",
     });
   } catch (err) {
     user.passwordResetToken = undefined;
@@ -254,8 +262,7 @@ exports.forgotPassword = async (req, res, next) => {
     await user.save({ validateBeforeSave: false });
 
     return next(
-      new AppError("There was an error sending the email. Try again later!"),
-      500
+      new AppError("There was an error sending the email. Try again later!", 500)
     );
   }
 };
@@ -276,6 +283,7 @@ exports.resetPassword = async (req, res, next) => {
   if (!user) {
     return res.status(400).json({
       status: "error",
+      message: "Token is Invalid or Expired",
     });
   }
   user.password = req.body.password;
@@ -286,7 +294,10 @@ exports.resetPassword = async (req, res, next) => {
 
   // 3) Update changedPasswordAt property for the user
   // 4) Log the user in, send JWT
+  const token = signToken(user._id);
   res.status(200).json({
     status: "success",
+    message: "Password Reseted Successfully",
+    token,
   });
 };

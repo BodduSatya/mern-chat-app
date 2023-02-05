@@ -1,35 +1,22 @@
 import React from "react";
 import { Avatar, Box, Fade, Menu, MenuItem, Stack } from "@mui/material";
+
 import { faker } from "@faker-js/faker";
+
 import { Profile_Menu } from "../../data";
-import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { LogoutUser } from "../../redux/slices/auth";
 
 const ProfileMenu = () => {
-  const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [anchorEl, setAnchorEl] = React.useState(null);
   const openMenu = Boolean(anchorEl);
   const handleClick = (event) => {
     setAnchorEl(event.currentTarget);
   };
-  const handleClose = (event) => {
+  const handleClose = () => {
     setAnchorEl(null);
-  };
-
-  const getMenuPath = (index) => {
-    switch (index) {
-      case 0:
-        return "/profile";
-
-      case 1:
-        return "/settings";
-
-      case 2:
-        // to update token & set isAuth = false
-        return "/auth/login";
-
-      default:
-        break;
-    }
+    dispatch(LogoutUser());
   };
 
   return (
@@ -64,16 +51,9 @@ const ProfileMenu = () => {
       >
         <Box p={1}>
           <Stack spacing={1}>
-            {Profile_Menu.map((el, idx) => (
-              <MenuItem
-                onClick={() => {
-                  handleClick()
-                }}
-              >
+            {Profile_Menu.map((el) => (
+              <MenuItem onClick={handleClose}>
                 <Stack
-                  onClick={() => {
-                    navigate(getMenuPath(idx))
-                  }}
                   sx={{ width: 100 }}
                   direction="row"
                   alignItems={"center"}

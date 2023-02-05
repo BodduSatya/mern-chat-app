@@ -3,14 +3,16 @@ import { Stack } from "@mui/material";
 import { Navigate, Outlet } from "react-router-dom";
 import useResponsive from "../../hooks/useResponsive";
 import SideNav from "./SideNav";
+import { useSelector } from "react-redux";
 
 
 const DashboardLayout = () => {
+
+  const { isLoggedIn } = useSelector((state) => state.auth);
   const isDesktop = useResponsive("up", "md");
-  
-  const isAuthenticated = true;
-  if (!isAuthenticated) {
-    return <Navigate to="/auth/login" />;
+
+  if (!isLoggedIn) {
+    return <Navigate to={"/auth/login"} />;
   }
 
   return (
