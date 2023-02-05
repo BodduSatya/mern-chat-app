@@ -14,6 +14,7 @@ import {
   TextMsg,
   Timeline,
 } from "../../sections/dashboard/Conversation";
+import { Scrollbars } from 'react-custom-scrollbars';
 
 const Conversation = ({ isMobile, menu }) => {
   return (
@@ -85,8 +86,6 @@ const ChatComponent = () => {
         sx={{
           position: "relative",
           flexGrow: 1,
-          overflow: "scroll",
-
           backgroundColor:
             theme.palette.mode === "light"
               ? "#F0F4FA"
@@ -95,9 +94,11 @@ const ChatComponent = () => {
           boxShadow: "0px 0px 2px rgba(0, 0, 0, 0.25)",
         }}
       >
-        <SimpleBarStyle timeout={500} clickOnTrack={false}>
+        {/* <SimpleBarStyle timeout={500} clickOnTrack={false}> */}
+        <Scrollbars autoHide autoHideTimeout={1000} style={{ height: '75vh' }}>
           <Conversation menu={true} isMobile={isMobile} />
-        </SimpleBarStyle>
+          </Scrollbars>
+        {/* </SimpleBarStyle> */}
       </Box>
 
       {/*  */}
