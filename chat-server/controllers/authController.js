@@ -244,7 +244,7 @@ exports.forgotPassword = async (req, res, next) => {
     // const resetURL = `${process.env.BASE_URL}/auth/reset-password/${resetToken}`;
     const resetURL = `${process.env.UI_BASE_URL}/auth/new-password?token=${resetToken}`;
     console.log('resetURL=', resetURL);
-    mailService.sendEmail({
+    mailService.sendEMail({
       to: user.email,
       subject: "Reset Password",
       html: resetPassword(user.firstName, resetURL),
