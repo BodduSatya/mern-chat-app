@@ -78,7 +78,7 @@ exports.sendOTP = async (req, res, next) => {
   console.log(new_otp);
 
   // TODO send mail
-  mailService.sendEmail({
+  mailService.sendEMail({
     to: user.email,
     subject: "Verification OTP",
     html: otp(user.firstName, new_otp),
