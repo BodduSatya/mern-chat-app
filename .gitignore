@@ -5,9 +5,12 @@
 /node_modules
 /.pnp
 .pnp.js
-/chat-server/node_modules
-/chat-server/config-v1.env
+/chat-app-backend/node_modules
+/chat-app-backend/config.env
+/chat-app-backend/node_modules
 
+/chat-app-ui/build
+/chat-app-ui/node_modules
 # testing
 /coverage
 
