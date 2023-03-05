@@ -85,17 +85,19 @@ const Chats = () => {
             direction="row"
           >
             <Typography variant="h5">Chats</Typography>
-            <IconButton
-              onClick={() => {
-                handleOpenDialog();
-              }}
-              sx={{ width: "max-content" }}
-            >
-              <Users />
-            </IconButton>
-            <IconButton sx={{ width: "max-content" }}>
-              <CircleDashed />
-            </IconButton>
+            <Stack direction={"row"} alignItems="center" spacing={1}>
+              <IconButton
+                onClick={() => {
+                  handleOpenDialog();
+                }}
+                sx={{ width: "max-content" }}
+              >
+                <Users />
+              </IconButton>
+              <IconButton sx={{ width: "max-content" }}>
+                <CircleDashed />
+              </IconButton>
+            </Stack>
           </Stack>
           <Stack sx={{ width: "100%" }}>
             <Search>

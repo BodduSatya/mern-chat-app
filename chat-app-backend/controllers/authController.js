@@ -189,31 +189,26 @@ exports.protect = async (req, res, next) => {
   }
 
   if (!token) {
-    return next(
-      new AppError(`You are not logged in! Please log in to get access.`, 401)
-    );
+    return res.status(401).json({
+      message: "You are not logged in! Please log in to get access.",
+    });
   }
   // 2) Verification of token
   const decoded = await promisify(jwt.verify)(token, process.env.JWT_SECRET);
-
+  console.log("decoded", decoded);
   // 3) Check if user still exists
 
-  const this_user = await User.findById(decoded.id);
+  const this_user = await User.findById(decoded.userId);
   if (!this_user) {
-    // return next(
-    //   new AppError(
-    //     "The user belonging to this token does no longer exists.",
-    //     401
-    //   )
-    // );
     return res.status(401).json({
       message: "The user belonging to this token does no longer exists.",
     });
   }
+
   // 4) Check if user changed password after the token was issued
   if (this_user.changedPasswordAfter(decoded.iat)) {
     return res.status(401).json({
-      message: "You are not logged in! Please log in to get access.",
+      message: "User recently changed password! Please log in again.",
     });
   }
 
