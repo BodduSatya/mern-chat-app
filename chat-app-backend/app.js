@@ -1,10 +1,10 @@
-const express = require('express'); // web framework for Node.js
-const morgan = require('morgan'); // HTTP request logger middleware for node.js
+const express = require("express"); // web framework for Node.js
+const morgan = require("morgan"); // HTTP request logger middleware for node.js
 
 const routes = require("./routes/index");
 
-const rateLimit = require('express-rate-limit'); // Basic rate-limiting middleware for Express. Use to limit repeated requests to public APIs and/or endpoints such as password reset.
-const helmet = require('helmet'); // Helmet helps you secure your Express apps by setting various HTTP headers. It's not a silver bullet, but it can help!
+const rateLimit = require("express-rate-limit"); // Basic rate-limiting middleware for Express. Use to limit repeated requests to public APIs and/or endpoints such as password reset.
+const helmet = require("helmet"); // Helmet helps you secure your Express apps by setting various HTTP headers. It's not a silver bullet, but it can help!
 
 // These headers are set in response by helmet
 
@@ -22,19 +22,17 @@ const helmet = require('helmet'); // Helmet helps you secure your Express apps b
 // X-Permitted-Cross-Domain-Policies: none
 // X-XSS-Protection: 0
 
-const mongosanitize = require('express-mongo-sanitize'); // This module searches for any keys in objects that begin with a $ sign or contain a ., from req.body, req.query or req.params.
+const mongosanitize = require("express-mongo-sanitize"); // This module searches for any keys in objects that begin with a $ sign or contain a ., from req.body, req.query or req.params.
 
 // By default, $ and . characters are removed completely from user-supplied input in the following places:
 // - req.body
 // - req.params
 // - req.headers
 // - req.query
+const xss = require("xss-clean"); // Node.js Connect middleware to sanitize user input coming from POST body, GET queries, and url params.
+const bodyParser = require("body-parser"); // Node.js body parsing middleware.
 
-const bodyParser = require('body-parser'); // Node.js body parsing middleware.
-
-const xss = require('xss-clean'); // Node.js Connect middleware to sanitize user input coming from POST body, GET queries, and url params.
-
-const cors = require('cors'); // CORS is a node.js package for providing a Connect/Express middleware that can be used to enable CORS with various options.
+const cors = require("cors"); // CORS is a node.js package for providing a Connect/Express middleware that can be used to enable CORS with various options.
 const cookieParser = require("cookie-parser"); // Parse Cookie header and populate req.cookies with an object keyed by the cookie names.
 const session = require("cookie-session"); // Simple cookie-based session middleware.
 
@@ -43,21 +41,13 @@ const userRouter = require("./routes/user");
 
 const app = express();
 
-app.use(express.urlencoded({ extended: true }));
-
-if (process.env.NODE_ENV === "development") {
-    app.use(morgan("dev"));
-}
-
-app.use(mongosanitize());
-
-// app.use(xss());
-
-app.use(cors({
+app.use(
+  cors({
     origin: "*",
     methods: ["GET", "PATCH", "POST", "DELETE", "PUT"],
     credentials: true,
-}))
+  })
+);
 
 app.use(cookieParser());
 
@@ -67,27 +57,27 @@ app.use(bodyParser.json()); // Returns middleware that only parses json
 app.use(bodyParser.urlencoded({ extended: true })); // Returns middleware that only parses urlencoded bodies
 
 app.use(
-    session({
-      secret: "keyboard cat",
-      proxy: true,
-      resave: true,
-      saveUnintialized: true,
-      cookie: {
-        secure: false,
-      },
-    })
-  );
+  session({
+    secret: "keyboard cat",
+    proxy: true,
+    resave: true,
+    saveUnintialized: true,
+    cookie: {
+      secure: false,
+    },
+  })
+);
 
 app.use(helmet());
 
 if (process.env.NODE_ENV === "development") {
-    app.use(morgan("dev"));
-  }
+  app.use(morgan("dev"));
+}
 
 const limiter = rateLimit({
-    max: 3000,
-    windowMs: 60 * 60 * 1000, // 1hr
-    message: "Too many requests from this IP, Please try again in an hour"
+  max: 3000,
+  windowMs: 60 * 60 * 1000, // 1hr
+  message: "Too many requests from this IP, Please try again in an hour",
 });
 
 app.use("/tawk", limiter);

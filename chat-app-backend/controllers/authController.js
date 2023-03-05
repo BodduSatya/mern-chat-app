@@ -19,7 +19,7 @@ const signToken = (userId) => jwt.sign({ userId }, process.env.JWT_SECRET);
 
 exports.register = async (req, res, next) => {
   const { firstName, lastName, email, password } = req.body;
-
+  // console.log("req.body=", req.body);
   const filteredBody = filterObj(
     req.body,
     "firstName",
@@ -27,11 +27,8 @@ exports.register = async (req, res, next) => {
     "email",
     "password"
   );
-
   // check if a verified user with given email exists
-
   const existing_user = await User.findOne({ email: email });
-
   if (existing_user && existing_user.verified) {
     // user with this email already exists, Please login
     return res.status(400).json({
@@ -40,22 +37,16 @@ exports.register = async (req, res, next) => {
     });
   } else if (existing_user) {
     // if not verified than update prev one
-
     await User.findOneAndUpdate({ email: email }, filteredBody, {
       new: true,
       validateModifiedOnly: true,
     });
-
     // generate an otp and send to email
     req.userId = existing_user._id;
     next();
   } else {
-    // if user is not created before than create a new one
-    //const new_user = await User.create(filteredBody);
-    // const hashedPassword = await bcrypt.hash(req.body.password, 10);
-    const new_user = await User.create({ filteredBody });
-
-    // generate an otp and send to email
+    // console.log("$$$$$$$", filteredBody);
+    const new_user = await User.create(filteredBody);
     req.userId = new_user._id;
     next();
   }
@@ -138,6 +129,7 @@ exports.verifyOTP = async (req, res, next) => {
     status: "success",
     message: "OTP verified Successfully!",
     token,
+    user_id: user._id,
   });
 };
 
@@ -208,18 +200,21 @@ exports.protect = async (req, res, next) => {
 
   const this_user = await User.findById(decoded.id);
   if (!this_user) {
-    return next(
-      new AppError(
-        "The user belonging to this token does no longer exists.",
-        401
-      )
-    );
+    // return next(
+    //   new AppError(
+    //     "The user belonging to this token does no longer exists.",
+    //     401
+    //   )
+    // );
+    return res.status(401).json({
+      message: "The user belonging to this token does no longer exists.",
+    });
   }
   // 4) Check if user changed password after the token was issued
   if (this_user.changedPasswordAfter(decoded.iat)) {
-    return next(
-      new AppError("User recently changed password! Please log in again.", 401)
-    );
+    return res.status(401).json({
+      message: "You are not logged in! Please log in to get access.",
+    });
   }
 
   // GRANT ACCESS TO PROTECTED ROUTE
@@ -263,12 +258,9 @@ exports.forgotPassword = async (req, res, next) => {
     user.passwordResetExpires = undefined;
     await user.save({ validateBeforeSave: false });
 
-    return next(
-      new AppError(
-        "There was an error sending the email. Try again later!",
-        500
-      )
-    );
+    return res.status(500).json({
+      message: "There was an error sending the email. Try again later!",
+    });
   }
 };
 
